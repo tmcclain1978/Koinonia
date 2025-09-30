@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="max-width:980px;">
+  <h1 class="mt-3">Admin — Bot Control</h1>
+  <p class="text-muted">Start/stop the AI engine, adjust risk limits, and inspect health.</p>
+  <hr>
+
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card p-3">
+        <h5>Engine</h5>
+        <div class="d-flex gap-2">
+          <button class="btn btn-success" id="bot-start">Start</button>
+          <button class="btn btn-warning" id="bot-reload">Reload</button>
+          <button class="btn btn-danger"  id="bot-stop">Stop</button>
+        </div>
+        <pre id="engine-status" class="mt-3 small text-muted">Loading…</pre>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card p-3">
+        <h5>Risk Limits</h5>
+        <form id="risk-form">
+          <div class="row g-2">
+            <div class="col-md-4">
+              <label class="form-label">Max orders/hr</label>
+              <input class="form-control" name="max_orders_per_hour" type="number" min="1" value="10">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Max daily loss ($)</label>
+              <input class="form-control" name="max_daily_loss" type="number" step="0.01" value="500">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Max position ($)</label>
+              <input class="form-control" name="max_position" type="number" step="0.01" value="5000">
+            </div>
+          </div>
+          <button class="btn btn-primary mt-3" type="submit">Save</button>
+          <span id="risk-status" class="ms-2 text-muted"></span>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-3 mt-3">
+    <h5>Health</h5>
+    <div class="d-flex gap-2">
+      <button class="btn btn-secondary btn-sm" id="health-refresh">Refresh</button>
+    </div>
+    <pre id="health" class="mt-2 small">Loading…</pre>
+  </div>
+</div>
+
+<script>
+const ADMIN_TOKEN = "{{ admin_token or '' }}";
+async function getHealth(){
+  const r = await fetch('/health/full', {headers:{'Authorization':'Bearer '+ADMIN_TOKEN}});
+  const t = await r.text();
+  document.getElementById('health').textContent = t;
+}
+async function getEngine(){
+  const r = await fetch('/api/admin/bot/status', {headers:{'Authorization':'Bearer '+ADMIN_TOKEN}})
+                  .catch(()=>({ok:false,text:()=>Promise.resolve('')}));
+  const t = r.ok ? await r.text() : 'status unavailable';
+  document.getElementById('engine-status').textContent = t;
+}
+async function engineCmd(cmd){
+  await fetch('/api/admin/bot/'+cmd, {method:'POST', headers:{'Authorization':'Bearer '+ADMIN_TOKEN}});
+  getEngine();
+}
+document.getElementById('bot-start').onclick  = ()=>engineCmd('start');
+document.getElementById('bot-reload').onclick = ()=>engineCmd('reload');
+document.getElementById('bot-stop').onclick   = ()=>engineCmd('stop');
+
+document.getElementById('risk-form').onsubmit = async (e)=>{
+  e.preventDefault();
+  const el = document.getElementById('risk-status');
+  el.textContent = 'Saving…';
+  const fd = new FormData(e.target);
+  const body = Object.fromEntries(fd.entries());
+  const r = await fetch('/api/risk_config_v2', {
+    method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+ADMIN_TOKEN},
+    body: JSON.stringify(body)
+  });
+  el.textContent = r.ok ? 'Saved ✅' : 'Failed ❌';
+};
+document.getElementById('health-refresh').onclick = getHealth;
+document.addEventListener('DOMContentLoaded', ()=>{ getEngine(); getHealth(); });
+</script>
+{% endblock %}

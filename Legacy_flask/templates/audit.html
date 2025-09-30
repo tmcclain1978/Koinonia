@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Audit Log{% endblock %}
+
+{% block head %}
+<style>
+  .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+  .btn { padding:8px 12px; border-radius:8px; border:1px solid #444; background:#222; color:#eaeaea; cursor:pointer; }
+  .muted { color:#9aa0a6; font-size:12px; }
+  pre { background:#0e0e0e; padding:12px; border-radius:10px; overflow:auto; max-height: 70vh; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+  <button class="btn" id="prev">Prev</button>
+  <button class="btn" id="next">Next</button>
+  <a class="btn" href="/api/audit/download.csv">Download CSV</a>
+  <span class="muted" id="meta">—</span>
+</div>
+<pre id="out"></pre>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let offset = 0, limit = 100, total = 0;
+
+async function load() {
+  const res = await fetch(`/api/audit?offset=${offset}&limit=${limit}`);
+  const data = await res.json();
+  total = data.total || 0;
+  document.getElementById('meta').textContent =
+    `showing ${data.items.length} of ${total} — offset ${offset}`;
+  document.getElementById('out').textContent = JSON.stringify(data.items, null, 2);
+}
+
+document.getElementById('prev').onclick = ()=>{ offset = Math.max(0, offset - limit); load(); };
+document.getElementById('next').onclick = ()=>{ if (offset + limit < total) { offset += limit; load(); } };
+
+load();
+</script>
+{% endblock %}

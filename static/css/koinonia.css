@@ -1,0 +1,21 @@
+/* static/css/koinonia.css */
+.k-body{background:#0b1020;color:#eaeaea}
+.k-topnav{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;background:#0b1020;color:#eaeaea;border-bottom:1px solid #1f2a44}
+.k-topnav a{color:#9aa0a6;text-decoration:none;margin-right:12px}
+.k-topnav .brand{color:#eaeaea;font-weight:700;margin-right:16px}
+.pill{display:inline-flex;align-items:center;gap:6px;
+  padding:6px 10px;border-radius:999px;background:rgba(123,210,255,.12);
+  color:#cbd5e1;border:1px solid rgba(123,210,255,.25);font-size:.85rem}
+.card{background:#0f1420;border:1px solid #1f2a44;border-radius:12px}
+.flash-wrap{max-width:980px;margin:12px auto;padding:0 16px}
+.flash-success{background:#0f3c1f;border:1px solid #1e8b4d;color:#cde9d9;padding:10px 12px;border-radius:10px;margin:6px 0}
+.flash-danger{background:#3c0f12;border:1px solid #8b1e2a;color:#f5c2c7;padding:10px 12px;border-radius:10px;margin:6px 0}
+.flash-warning{background:#40350a;border:1px solid #9c820f;color:#ffe082;padding:10px 12px;border-radius:10px;margin:6px 0}
+/* simple dropdown (optional) */
+.dropdown{position:relative;display:inline-block}
+.dropdown-toggle{background:transparent;border:0;color:#9aa0a6;cursor:pointer}
+.dropdown-menu{display:none;position:absolute;min-width:200px;background:#0f1420;border:1px solid #1f2a44;border-radius:10px;padding:8px}
+.dropdown:hover .dropdown-menu{display:block}
+.dropdown-item{display:block;padding:6px 10px;color:#9aa0a6;text-decoration:none}
+.dropdown-sep{height:1px;background:#1f2a44;margin:6px 0}

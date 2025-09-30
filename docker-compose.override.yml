@@ -1,0 +1,15 @@
+
+
+services:
+  api:
+    profiles: ["prod"]
+    build:
+      context: .
+      target: prod
+    env_file:
+      - .env.production
+    ports:
+      - "10000:10000"
+    command: >
+      gunicorn -k uvicorn.workers.UvicornWorker api.main:app
+      --workers 2 --threads 2 --timeout 30 --graceful-timeout 30 --bind 0.0.0.0:10000

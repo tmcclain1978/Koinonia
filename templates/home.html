@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Koinonia · Home{% endblock %}
+
+{% block head %}
+<style>
+  .hero {
+    display:grid; gap:20px; align-items:center; padding:48px 0;
+    grid-template-columns: 1.1fr .9fr;
+  }
+  .hero h1 { margin:0; font-size:clamp(28px, 4vw, 42px); line-height:1.15 }
+  .sub { color:#9fb0cf; font-size:15px; margin-top:8px }
+  .cta { display:flex; gap:12px; margin-top:18px; flex-wrap:wrap }
+  .btn {
+    display:inline-flex; align-items:center; gap:8px; padding:10px 16px;
+    border-radius:12px; text-decoration:none; border:1px solid var(--k-border, rgba(123,210,255,.2));
+    background:rgba(14,24,49,.72); color:#eaf2ff;
+  }
+  .btn.primary {
+    background: linear-gradient(180deg,#8de0ff,#55c8ff);
+    color:#05253f; border-color:transparent; font-weight:800;
+    box-shadow:0 12px 28px rgba(123,210,255,.35)
+  }
+  .panel {
+    background: var(--k-card, rgba(14,24,49,.72));
+    border:1px solid var(--k-border, rgba(123,210,255,.2));
+    border-radius:16px; padding:16px;
+  }
+  .kgrid { display:grid; gap:16px; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); }
+  .kgrid .panel h3 { margin:0 0 8px; font-size:16px }
+  .pill { display:inline-block; border:1px solid rgba(123,210,255,.25); background:rgba(123,210,255,.12);
+          padding:4px 10px; border-radius:999px; font-size:12px; color:#cbd5e1 }
+  .spark {
+    height:160px; border-radius:14px; border:1px solid var(--k-border, rgba(123,210,255,.2));
+    background: radial-gradient(600px 240px at 70% -10%, rgba(123,210,255,.15), transparent 55%),
+                radial-gradient(600px 240px at -10% 90%, rgba(255,209,102,.15), transparent 55%),
+                #0b1020;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+  <div>
+    <h1>Trade with clarity. <br/>Build with confidence.</h1>
+    <p class="sub">
+      Koinonia brings actionable AI signals, risk controls, and paper/live execution into a single dashboard.
+      Your mode:
+      {% set mode_text = "Read-Only" %}
+      {% if ENABLE_TRADING and PAPER_MODE %}
+        {% set mode_text = "Paper" %}
+      {% elif ENABLE_TRADING and not PAPER_MODE %}
+        {% set mode_text = "Live" %}
+      {% endif %}
+      <span class="pill">{{ mode_text }}</span>
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="{{ url_for('dashboard') }}">Open Dashboard</a>
+      <a class="btn" href="{{ href_for('advisor_template', '/advisor') }}">AI Advisor</a>
+      <a class="btn" href="{{ url_for('compliance') }}">Compliance Templates</a>
+      <a class="btn" href="{{ url_for('verify') }}">KYC / Verify</a>
+    </div>
+  </div>
+
+  <div class="spark panel">
+    <!-- reserved space for a hero chart/screenshot; optional -->
+  </div>
+</section>
+
+<section class="kgrid">
+  <div class="panel">
+    <h3>Signals & Research</h3>
+    <p class="sub">Options signals, IV/OI heatmaps, and quick backtests — right next to your orders.</p>
+    <a class="btn" href="/dashboard/advisor/iv-oi">Open IV / OI Heatmap</a>
+  </div>
+
+  <div class="panel">
+    <h3>Paper Trading</h3>
+    <p class="sub">Practice execution with real-time quotes. Server-side risk limits enforce discipline.</p>
+    <a class="btn" href="{{ href_for('paper_options', '/paper/options') }}">Paper (Options)</a>
+  </div>
+
+  <div class="panel">
+    <h3>Education & Media</h3>
+    <p class="sub">Level up your edge with concise explainers and the “You Got Options” live stream.</p>
+    <a class="btn" href="{{ url_for('page_education') }}">Education</a>
+    <a class="btn" href="{{ url_for('page_podcast') }}">Podcast</a>
+  </div>
+</section>
+
+{% endblock %}

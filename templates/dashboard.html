@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Koinonia · Dashboard{% endblock %}
+
+{% block head %}
+<style>
+  .top-actions { position: sticky; top: 0; z-index: 40; display:flex; justify-content: flex-end; padding: 8px; }
+  .dd { position: relative; }
+  .ddbtn { padding:8px 10px; border:1px solid #334155; background:#0f172a; color:#e5e7eb; border-radius:8px; cursor:pointer; }
+  .menu { position:absolute; right:0; top:calc(100% + 6px); min-width: 220px; background:#0b1220; border:1px solid #263244; border-radius:10px; display:none; }
+  .menu a { display:block; padding:10px 12px; color:#e5e7eb; text-decoration:none; border-bottom:1px solid #1e293b; }
+  .menu a:hover { background:#0e1726; }
+  .menu a:last-child { border-bottom:0; }
+
+  /* Cards / grid (from your alt dashboard) */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(320px,1fr)); gap: 16px; }
+  .card { background: var(--k-card, rgba(14,24,49,.72)); color: var(--k-fg, #eaeaea);
+          border:1px solid var(--k-border, rgba(123,210,255,.2)); border-radius: 12px; padding: 16px; }
+  .card-title { font-weight: 700; margin-bottom: 8px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .row input, .row select { flex:1; min-width: 120px; padding:8px; border-radius:8px; border:1px solid #334155; background:#0f1420; color:#eaeaea; }
+  .btn { padding:8px 12px; border-radius:10px; border:1px solid #334155; background:#0f1420; color:#eaeaea; cursor:pointer; }
+  .btn.primary { background:#2d6cdf; border-color:#2d6cdf; }
+  .muted { color:#9aa0a6; font-size: 12px; }
+  pre { background:#0e0e0e; padding:12px; border-radius:10px; overflow:auto; max-height: 360px; }
+  .kpis { display:grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+  .kpi { background:#0f1420; border:1px solid #1f2a44; border-radius:12px; padding:12px; }
+  .kpi .label { font-size:12px; color:#93a2b8; }
+  .kpi .value { font-size:18px; font-weight:700; }
+  .pill { display:inline-block; border:1px solid #334; background:#111827; padding:2px 8px; border-radius:999px; font-size:12px; }
+  .danger { color:#ff7b7b }
+</style>
+{% endblock %}
+
+{% block content %}
+
+  <!-- Quick Education/Media menu -->
+  <div class="top-actions">
+    <div class="dd">
+      <button class="ddbtn"
+              onclick="this.nextElementSibling.style.display = (this.nextElementSibling.style.display==='block'?'none':'block')">
+        Education & Media ▾
+      </button>
+      <div class="menu" onclick="this.style.display='none'">
+        <a href="/education">🎓 Options Education</a>
+        <a href="/podcast">🎙️ You Got Options (Live)</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- TradingView Pro / custom chart area -->
+  <div id="pro-chart-card" style="margin-top:16px;">
+    <div id="pro-chart" style="height:480px;border:1px solid #1f2a44;border-radius:12px;"></div>
+  </div>
+
+  <!-- Your dashboard functional blocks -->
+  <div id="page" data-admin-token="{{ admin_token|default('', true) }}" style="margin-top:16px">
+    <div class="grid">
+      <!-- Broker linking -->
+      <div class="card">
+        <div class="card-title">Broker</div>
+        <div class="row">
+          <button class="btn primary" id="link-schwab">Link Schwab</button>
+          <span id="link-status" class="muted">Not linked</span>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="btn-accounts">Load Accounts</button>
+          <select id="acct"></select>
+          <span class="muted">Mode:
+            <span class="pill" id="mode-pill">Read-Only</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Portfolio KPIs -->
+      <div class="card">
+        <div class="card-title">Portfolio</div>
+        <div class="kpis">
+          <div class="kpi"><div class="label">Cash</div>
+      </div>
+{% endblock %}
+

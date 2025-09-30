@@ -1,0 +1,179 @@
+{% extends "base.html" %}{% block content %}
+<h1>Analytics</h1>
+<div id="charts">Loading…</div>
+{% endblock %}
+
+{% block head_extras %}
+  <!-- Chart.js (defer so it doesn’t block paint) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <style>
+    .wrap{padding:0}
+    h2{text-align:center;margin:0 0 12px}
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+      gap:12px;margin:6px 0 18px
+    }
+    .stat{
+      background:#0f1420;border:1px solid #1f2a44;border-radius:12px;padding:10px 14px
+    }
+    .stat .k{font-size:12px;color:#93a2b8}
+    .stat .v{font-size:20px;font-weight:700}
+    .chart{max-width:1100px;margin:14px auto}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+    input{padding:8px;border-radius:8px;border:1px solid #334;background:#111827;color:#eaeaea}
+    .muted{color:#9aa0a6;font-size:12px;text-align:center}
+  </style>
+{% endblock %}
+
+
+  <div id="page" class="wrap" data-admin-token="{{ admin_token|default('', true) }}">
+    <h1 class="h4 mb-3" style="text-align:center">Options Trading Analytics</h1>
+
+    <!-- Headline KPIs -->
+    <div class="stats">
+      <div class="stat"><div class="k">Total Trades</div><div class="v" id="total">—</div></div>
+      <div class="stat"><div class="k">Wins</div><div class="v" id="wins">—</div></div>
+      <div class="stat"><div class="k">Losses</div><div class="v" id="losses">—</div></div>
+      <div class="stat"><div class="k">Win Rate</div><div class="v" id="win_rate">—%</div></div>
+      <div class="stat"><div class="k">Avg Confidence</div><div class="v" id="avg_conf">—%</div></div>
+      <div class="stat"><div class="k">Expectancy</div><div class="v" id="expectancy">—</div></div>
+      <div class="stat"><div class="k">Max Drawdown</div><div class="v" id="maxdd">—</div></div>
+      <div class="stat" id="slipStat" style="display:none">
+        <div class="k">Slippage Quality</div><div class="v" id="slipv">— bps</div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="card p-3 chart"><canvas id="dailyWinRate"></canvas></div>
+    <div class="card p-3 chart"><canvas id="confidenceHist"></canvas></div>
+    <div class="card p-3 chart"><canvas id="strategyMix"></canvas></div>
+    <div class="card p-3 chart"><canvas id="pnlLine"></canvas></div>
+    <div class="card p-3 chart"><canvas id="ddLine"></canvas></div>
+
+    <!-- Optional IV Premium mini-widget -->
+    <div class="row mt-2">
+      <input id="ivsym" placeholder="Analyze IV premium (e.g., AAPL)">
+      <button id="btnIV" class="btn">Compute IV Premium</button>
+    </div>
+    <p class="muted" id="ivout"></p>
+  </div>
+{% endblock %}
+
+{% block footer_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  const res = await fetch('/api/options/analytics_stats', {credentials:'same-origin'});
+  const s = await res.json();
+
+  // Headline numbers
+  set('total', s.total ?? 0);
+  set('wins',  s.wins ?? 0);
+  set('losses',s.losses ?? 0);
+  set('win_rate', pct(s.win_rate ?? 0));
+  set('avg_conf', pct(s.avg_confidence ?? 0));
+
+  // Expectancy = win_rate*avg_win - (1-win_rate)*|avg_loss|
+  if (s.avg_win != null && s.avg_loss != null && s.win_rate != null){
+    const wr = (Number(s.win_rate)||0)/100;
+    const expect = wr*(Number(s.avg_win)||0) - (1-wr)*Math.abs(Number(s.avg_loss)||0);
+    set('expectancy', expect.toFixed(2));
+  }
+
+  // Drawdown (from equity series if provided)
+  if (s.pnl && Array.isArray(s.pnl.values)) {
+    const {maxDD, ddSeries} = computeDrawdown(s.pnl.values);
+    set('maxdd', maxDD.toFixed(2));
+    mkLine('ddLine', s.pnl.labels, ddSeries, 'Drawdown');
+  }
+
+  // Optional slippage quality metric
+  if (s.avg_fill_vs_mid_bps != null){
+    document.getElementById('slipStat').style.display = 'block';
+    set('slipv', (Number(s.avg_fill_vs_mid_bps)||0).toFixed(0));
+  }
+
+  // Charts
+  mkLine('pnlLine',        s.pnl.labels,                 s.pnl.values,                 'Cumulative P&L');
+  mkLine('dailyWinRate',   s.daily.labels,               s.daily.win_rate,             'Daily Win Rate %', {y:{beginAtZero:true,max:100}});
+  mkBar ('confidenceHist', s.confidence.labels,          s.confidence.values,          'Confidence Distribution');
+  mkDoughnut('strategyMix',Object.keys(s.strategy_mix||{}), Object.values(s.strategy_mix||{}), 'Strategy Mix');
+
+  // --- IV Premium mini-widget ---
+  const admin = document.getElementById('page')?.dataset?.adminToken || '';
+  const btnIV = document.getElementById('btnIV');
+  if (btnIV){
+    btnIV.onclick = async () => {
+      const sym = (document.getElementById('ivsym').value||'').trim().toUpperCase();
+      if (!sym){ return out('Enter a symbol.'); }
+      if (!admin){ return out('Need admin token; open from an admin session.'); }
+
+      try{
+        const ph = await (await fetch('/api/schwab/pricehistory', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Admin-Token': admin},
+          body: JSON.stringify({symbol:sym, period:'1M', interval:'1d'})
+        })).json();
+        const closes = (ph.candles||[]).map(c=>c.close);
+        const hv = annualizedHV(closes);
+
+        const cached = window.localStorage.getItem('iv_mean_'+sym);
+        if (!cached) return out('Load chains on Paper page first to cache IV mean.');
+        const iv = parseFloat(cached);
+
+        if (!isFinite(iv) || !isFinite(hv)) return out('Insufficient data.');
+        const ratio = iv / hv;
+        out(`IV ≈ ${iv.toFixed(2)} | HV20 ≈ ${hv.toFixed(2)} | IV/HV ≈ ${ratio.toFixed(2)} (higher ⇒ richer options)`);
+      }catch(e){
+        out('Error computing IV/HV.');
+      }
+    };
+  }
+
+  // ---- helpers ----
+  function out(txt){ document.getElementById('ivout').textContent = txt; }
+  function set(id,v){ const el=document.getElementById(id); if(el) el.textContent = v; }
+  function pct(x){ return (Number(x)||0).toFixed(1)+'%'; }
+
+  function mkLine(cid, labels, data, label, scales={}){
+    new Chart(document.getElementById(cid), {
+      type:'line',
+      data:{labels, datasets:[{label, data, fill:false, tension:.2}]},
+      options:{responsive:true, scales:{y: scales.y || {beginAtZero:true}}}
+    });
+  }
+  function mkBar(cid, labels, data, label){
+    new Chart(document.getElementById(cid), {
+      type:'bar',
+      data:{labels, datasets:[{label, data}]},
+      options:{responsive:true, plugins:{legend:{display:false}}}
+    });
+  }
+  function mkDoughnut(cid, labels, data, label){
+    new Chart(document.getElementById(cid), {
+      type:'doughnut',
+      data:{labels, datasets:[{label, data}]},
+      options:{responsive:true}
+    });
+  }
+  function computeDrawdown(series){
+    let peak = -Infinity, maxDD = 0, dd = [];
+    for (const v of series){
+      peak = Math.max(peak, v);
+      const d = v - peak;
+      maxDD = Math.min(maxDD, d);
+      dd.push(d);
+    }
+    return {maxDD, ddSeries: dd};
+  }
+  function annualizedHV(closes){
+    if (!closes || closes.length < 22) return NaN;
+    const rets = [];
+    for (let i=1;i<closes.length;i++) rets.push(Math.log(closes[i]/closes[i-1]));
+    const mu = rets.reduce((s,x)=>s+x,0)/rets.length;
+    const v  = rets.reduce((s,x)=>s+(x-mu)*(x-mu),0)/(rets.length-1);
+    return Math.sqrt(v)*Math.sqrt(252);
+  }
+});
+</script>
+{% endblock %}

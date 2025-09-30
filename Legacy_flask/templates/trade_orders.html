@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% include "_partials/topnav.html" %}
+{% block title %}Trade Ticket{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  .wrap{padding:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:16px}
+  .card{background:#0f1420;border:1px solid #1f2a44;border-radius:12px;padding:16px}
+  .title{font-weight:700;margin-bottom:8px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  input,select,button{padding:8px;border-radius:8px;border:1px solid #334;background:#111827;color:#eaeaea}
+  button.primary{background:#2d6cdf;border-color:#2d6cdf}
+  .muted{color:#9aa0a6;font-size:12px}
+  pre{background:#0b0f1a;padding:12px;border-radius:10px;overflow:auto;max-height:50vh}
+  .kgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .k{font-size:12px;color:#93a2b8}.v{font-weight:700}
+  .pill{display:inline-block;border:1px solid #334;background:#111827;padding:2px 8px;border-radius:999px;font-size:12px}
+  .hidden{display:none}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap" id="page" data-admin-token="{{ admin_token|default('', true) }}">
+  <h2>🧾 Trade Ticket</h2>
+  <p class="muted">Build, validate, preview & submit orders. Live trading is gated by <code>ENABLE_TRADING</code>/<code>PAPER_MODE</code>.</p>
+
+  <div class="grid">
+    <!-- Builder -->
+    <div class="card">
+      <div class="title">Order Builder</div>
+
+      <!-- Symbol / Account / Types -->
+      <div class="row">
+        <input id="account" placeholder="Account ID (required for live)" style="min-width:240px">
+        <input id="symbol" value="AAPL" style="width:120px">
+        <select id="strategy" title="Structure of legs">
+          <option value="SINGLE" selected>Single (Equity/Option)</option>
+          <option value="VERTICAL">Vertical (2 legs)</option>
+          <option value="IRON_CONDOR">Iron Condor (4 legs)</option>
+          <option value="COVERED_CALL">Covered Call</option>
+        </select>
+        <select id="orderType" title="Execution type">
+          <option value="MARKET">Market</option>
+          <option value="LIMIT" selected>Limit</option>
+          <option value="STOP">Stop</option>
+          <option value="STOP_LIMIT">Stop-Limit</option>
+          <option value="TRAILING_STOP">Trailing Stop</option>
+          <option value="BRACKET">Bracket (OTOCO)</option>
+          <option value="OCO">OCO</option>
+          <option value="FIRST_TRIGGERS">First Triggers</option>
+          <option value="MOC">Market on Close</option>
+          <option value="LOC">Limit on Close</option>
+        </select>
+        <select id="session" title="Session"><option>NORMAL</option><option>AM</option><option>PM</option></select>
+        <select id="duration"><option>DAY</option><option>GTC</option></select>
+      </div>
+
+      <!-- Legs -->
+      <div class="title" style="margin-top:8px">Legs</div>
+      <div id="legs"></div>
+
+      <!-- Price / Quantity -->
+      <div class="row" style="margin-top:8px">
+        <label>Limit / Net:
+          <input id="px" type="range" min="0" max="1" step="0.01" value="0.50" style="width:220px">
+          <span id="pxLabel" class="v">—</span>
+        </label>
+        <input id="qty" type="number" value="1" min="1" style="width:80px" title="Contracts (or shares for stock leg)">
+      </div>
+
+      <!-- Advanced fields -->
+      <div id="advFields" class="muted" style="margin-top:8px">Advanced fields appear when relevant.</div>
+      <div class="space-y" style="margin-top:6px">
+        <!-- Stop / Stop-Limit -->
+        <div id="rowStop" class="row hidden">
+          <input id="stopPrice" type="number" step="0.01" placeholder="Stop price">
+          <input id="stopLimitPrice" type="number" step="0.01" placeholder="Stop-limit price (for STOP_LIMIT)">
+        </div>
+
+        <!-- Trailing stop -->
+        <div id="rowTrail" class="row hidden">
+          <select id="trailType"><option value="VALUE" selected>Trail $</option><option value="PERCENT">Trail %</option></select>
+          <input id="trailValue" type="number" step="0.01" placeholder="Amount or %">
+          <select id="trailBasis"><option value="LAST" selected>Trail vs LAST</option><option value="BID">BID</option><option value="ASK">ASK</option></select>
+        </div>
+
+        <!-- Bracket / OCO / First Triggers -->
+        <div id="rowBracket" class="row hidden">
+          <input id="brkt_target" type="number" step="0.01" placeholder="Profit target (limit)">
+          <input id="brkt_stop" type="number" step="0.01" placeholder="Stop price">
+          <input id="brkt_stop_lim" type="number" step="0.01" placeholder="(optional) Stop-limit price">
+        </div>
+
+        <!-- LOC -->
+        <div id="rowLOC" class="row hidden">
+          <input id="loc_price" type="number" step="0.01" placeholder="Limit on close price">
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="row" style="margin-top:8px">
+        <button class="primary" id="btnChains">Load Chains</button>
+        <button class="primary" id="btnPreview">Preview</button>
+        <button id="btnSubmit">Submit</button>
+      </div>
+
+      <div class="muted" id="notes" style="margin-top:6px">Tip: Load chains to populate expirations & strikes; the slider anchors to net mid.</div>
+    </div>
+
+    <!-- Risk / Mapping -->
+    <div class="card">
+      <div class="title">Risk & Mapping</div>
+      <div class="kgrid">
+        <div><span class="k">Max Loss</span><div class="v" id="k_maxl">—</div></div>
+        <div><span class="k">Max Profit</span><div class="v" id="k_maxp">—</div></div>
+        <div><span class="k">Breakeven</span><div class="v" id="k_be">—</div></div>
+      </div>
+      <div class="muted" style="margin-top:6px">Below is the exact Schwab order JSON your server will send (or schedule for MOC/LOC).</div>
+      <pre id="mapping"></pre>
+    </div>
+
+    <!-- Payoff -->
+    <div class="card">
+      <div class="title">Payoff @ Expiration</div>
+      <canvas id="payoff"></canvas>
+    </div>
+
+    <!-- Logs -->
+    <div class="card">
+      <div class="title">Preview / Submit Logs</div>
+      <pre id="out"></pre>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ADMIN = document.getElementById('page').dataset.adminToken || '';
+const els = idMap("account,symbol,strategy,orderType,session,duration,legs,qty,px,pxLabel,btnChains,btnPreview,btnSubmit");
+let CHAINS = null;
+
+// ---------- init ----------
+setupLegUI(); updatePriceLabel(); wireAdvancedVisibility();
+
+els.strategy.onchange = () => { setupLegUI(); updatePriceLabel(); };
+els.px.oninput = updatePriceLabel;
+els.orderType.onchange = wireAdvancedVisibility;
+
+document.getElementById('btnChains').onclick = loadChains;
+document.getElementById('btnPreview').onclick = previewOrder;
+document.getElementById('btnSubmit').onclick = submitOrder;
+
+// ---------- legs UI ----------
+function setupLegUI(){
+  const typ = v('strategy');
+  const L = id('legs'); L.innerHTML = '';
+  if (typ==='SINGLE'){
+    L.appendChild(legRow('A', {asset:'OPTION', action:'BUY', side:'CALL'}));
+  } else if (typ==='VERTICAL'){
+    L.appendChild(legRow('A', {asset:'OPTION', action:'BUY', side:'CALL'}));
+    L.appendChild(legRow('B', {asset:'OPTION', action:'SELL', side:'CALL'}));
+  } else if (typ==='IRON_CONDOR'){
+    L.appendChild(legRow('A', {asset:'OPTION', action:'SELL', side:'CALL'}));
+    L.appendChild(legRow('B', {asset:'OPTION', action:'BUY', side:'CALL'}));
+    L.appendChild(legRow('C', {asset:'OPTION', action:'SELL', side:'PUT'}));
+    L.appendChild(legRow('D', {asset:'OPTION', action:'BUY', side:'PUT'}));
+  } else if (typ==='COVERED_CALL'){
+    L.appendChild(stockRow('S', {asset:'STOCK', action:'BUY'}));
+    L.appendChild(legRow('C', {asset:'OPTION', action:'SELL', side:'CALL'}));
+  }
+}
+function legRow(label, def){
+  const r = document.createElement('div'); r.className='row'; r.dataset.label = label;
+  r.innerHTML = `
+    <span class="pill">${label}</span>
+    <select class="asset">
+      <option ${def.asset==='OPTION'?'selected':''}>OPTION</option>
+      <option ${def.asset==='STOCK'?'selected':''}>STOCK</option>
+    </select>
+    <select class="action"><option ${def.action==='BUY'?'selected':''}>BUY</option><option ${def.action==='SELL'?'selected':''}>SELL</option></select>
+    <select class="side"><option ${def.side==='CALL'?'selected':''}>CALL</option><option ${def.side==='PUT'?'selected':''}>PUT</option></select>
+    <select class="exp"></select>
+    <select class="strike"></select>
+    <input class="lqty" type="number" value="1" min="1" style="width:70px">
+  `;
+  if (CHAINS) populateExpStrike(r);
+  r.querySelector('.asset').onchange = () => {
+    const isStock = r.querySelector('.asset').value==='STOCK';
+    r.querySelector('.side').disabled = isStock;
+    r.querySelector('.exp').disabled  = isStock;
+    r.querySelector('.strike').disabled = isStock;
+  };
+  return r;
+}
+function stockRow(label, def){
+  const r = document.createElement('div'); r.className='row'; r.dataset.label = label;
+  r.innerHTML = `
+    <span class="pill">${label}</span>
+    <span class="muted">STOCK</span>
+    <select class="action"><option ${def.action==='BUY'?'selected':''}>BUY</option><option ${def.action==='SELL'?'selected':''}>SELL</option></select>
+    <input class="lqty" type="number" value="100" min="1" style="width:90px" title="shares">
+  `;
+  return r;
+}
+
+// ---------- chains ----------
+async function loadChains(){
+  const symbol = v('symbol');
+  const res = await fetch('/api/schwab/chains', {
+    method:'POST', headers:{'Content-Type':'application/json','X-Admin-Token': ADMIN},
+    body: JSON.stringify({symbol})
+  });
+  CHAINS = await res.json();
+  [...els.legs.children].forEach(populateExpStrike);
+  t('out', 'Chains loaded for ' + symbol);
+  updatePriceLabel();
+}
+function populateExpStrike(row){
+  const expSel = row.querySelector('.exp'), strikeSel = row.querySelector('.strike');
+  if (!expSel || !strikeSel) return;
+  expSel.innerHTML = ''; strikeSel.innerHTML = '';
+  const maps = mergeMaps(CHAINS?.callExpDateMap, CHAINS?.putExpDateMap);
+  Object.keys(maps||{}).forEach(e=>opt(expSel,e,e.split(':')[0]));
+  const sideSel = row.querySelector('.side');
+  expSel.onchange = () => {
+    const map = (sideSel.value==='CALL') ? CHAINS?.callExpDateMap : CHAINS?.putExpDateMap;
+    const legs = (map?.[expSel.value]) || {};
+    strikeSel.innerHTML = ''; Object.keys(legs).forEach(k=>opt(strikeSel,k,k));
+  };
+  if (expSel.options.length) expSel.selectedIndex = 0;
+  expSel.onchange();
+}
+
+// ---------- advanced fields visibility ----------
+function wireAdvancedVisibility(){
+  const t = v('orderType');
+  id('rowStop').classList.toggle('hidden', !(t==='STOP' || t==='STOP_LIMIT'));
+  id('rowTrail').classList.toggle('hidden', t!=='TRAILING_STOP');
+  id('rowBracket').classList.toggle('hidden', !(t==='BRACKET' || t==='OCO' || t==='FIRST_TRIGGERS'));
+  id('rowLOC').classList.toggle('hidden', t!=='LOC');
+}
+
+// ---------- pricing slider ----------
+function updatePriceLabel(){
+  let netMid = 0;
+  const rows = [...els.legs.children].filter(r=>r.querySelector('.asset')?.value!=='STOCK');
+  rows.forEach((row)=>{
+    const leg = readRow(row);
+    const L = pickLegFromChains(leg);
+    const legMid = ((L?.bid||0)+(L?.ask||0))/2;
+    const sign = leg.action==='BUY'? +1 : -1;
+    netMid += sign * legMid;
+  });
+  const bid = Math.max(0, netMid - 0.10), ask = Math.max(0, netMid + 0.10); // small envelope if unknown
+  els.px.dataset.bid = bid; els.px.dataset.ask = ask;
+  const f = +els.px.value; const limit = bid + f*(Math.max(0, ask-bid));
+  els.pxLabel.textContent = isFinite(limit)? limit.toFixed(2) : '—';
+}
+function currentLimit(){
+  const bid = +els.px.dataset.bid || 0, ask = +els.px.dataset.ask || 0, f = +els.px.value;
+  return +(bid + f*(Math.max(0, ask-bid))).toFixed(2);
+}
+
+// ---------- normalized order ----------
+function buildOrder(){
+  const base = {
+    account_id: v('account') || null,
+    symbol: v('symbol'),
+    orderType: v('orderType'),
+    session: v('session'),
+    duration: v('duration'),
+    strategy: v('strategy'),
+    quantity: parseInt(v('qty'),10) || 1,
+    price: currentLimit(),  // used for LIMIT / STOP_LIMIT price; ignored for MARKET/STOP (server uses stopPrice)
+    legs: [...els.legs.children].map(readRow)
+  };
+  const t = base.orderType;
+  if (t==='STOP' || t==='STOP_LIMIT'){
+    base.stopPrice = num(v('stopPrice'));
+    if (t==='STOP_LIMIT') base.limitPrice = num(v('stopLimitPrice')) || base.price;
+  }
+  if (t==='TRAILING_STOP'){
+    base.trail = { type: v('trailType'), value: num(v('trailValue')), basis: v('trailBasis') };
+  }
+  if (t==='BRACKET' || t==='OCO' || t==='FIRST_TRIGGERS'){
+    base.attached = {
+      target: num(v('brkt_target')) || null,
+      stop: num(v('brkt_stop')) || null,
+      stopLimit: num(v('brkt_stop_lim')) || null
+    };
+  }
+  if (t==='LOC'){ base.locPrice = num(v('loc_price')); }
+  return base;
+}
+function readRow(row){
+  const isStock = (row.querySelector('.asset')?.value || 'OPTION') === 'STOCK';
+  const q = parseInt(row.querySelector('.lqty').value,10)||1;
+  if (isStock) {
+    return {asset:'STOCK', action: row.querySelector('.action').value, quantity: q};
+  }
+  const exp = row.querySelector('.exp').value.split(':')[0];
+  const strike = parseFloat(row.querySelector('.strike').value);
+  return {
+    asset:'OPTION',
+    action: row.querySelector('.action').value,
+    side: row.querySelector('.side').value,
+    expiration: exp,
+    strike: strike,
+    quantity: q,
+    price: 0 // server computes net via slider or leg mids; we keep 0 per-leg
+  };
+}
+function num(x){ const f=parseFloat(x); return isFinite(f)?f:null; }
+
+// ---------- preview / submit ----------
+async function previewOrder(){
+  const o = buildOrder();
+  const res = await fetch('/api/trade/preview', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(o)});
+  const j = await res.json();
+  if (!j.ok){ t('out', j); return; }
+  // risk
+  tText('k_maxl', fmt(j.risk.maxLoss));
+  tText('k_maxp', fmt(j.risk.maxProfit));
+  tText('k_be',   fmt(j.risk.breakeven));
+  // mapping
+  id('mapping').textContent = JSON.stringify(j.schwabOrder, null, 2);
+  // payoff (approx at expiration)
+  drawPayoff(o);
+  t('out', 'Preview OK.');
+}
+async function submitOrder(){
+  const o = buildOrder();
+  const res = await fetch('/api/trade/submit', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(o)});
+  const j = await res.json();
+  t('out', j);
+}
+
+// ---------- payoff (expiration approx) ----------
+function drawPayoff(o){
+  const ctx = id('payoff').getContext('2d');
+  const legs = o.legs, qty = o.quantity||1;
+  const S0 = 100; const xs=[], ys=[];
+  const net = o.price || 0;
+  for(let s=S0*0.7; s<=S0*1.3; s+=S0*0.02){
+    let intr = 0;
+    for(const l of legs){
+      if (l.asset==='STOCK'){
+        const sign = l.action==='BUY'? +1 : -1;
+        intr += sign * (s - S0); // stock P/L vs entry
+        continue;
+      }
+      const val = (l.side==='CALL'? Math.max(0, s - l.strike) : Math.max(0, l.strike - s));
+      const mult = (l.action==='BUY')? +1 : -1;
+      intr += mult * val;
+    }
+    ys.push( (intr - net) * 100 * qty );
+    xs.push(s.toFixed(2));
+  }
+  if (window._pay) window._pay.destroy();
+  window._pay = new Chart(ctx, { type:'line',
+    data:{labels:xs, datasets:[{label:'Payoff @ Exp', data:ys, fill:false, tension:0}]},
+    options:{responsive:true, scales:{y:{beginAtZero:false}}}
+  });
+}
+
+// ---------- utils ----------
+function id(x){return document.getElementById(x)}
+function v(x){return id(x).value}
+function t(id_, val){ id(id_).textContent = (typeof val==='string')? val : JSON.stringify(val, null, 2); }
+function tText(id_, val){ id(id_).textContent = val; }
+function fmt(x){ if (x==null) return '—'; if (typeof x==='number') return x.toFixed(2); return x; }
+function opt(sel, value, label){ const o=document.createElement('option'); o.value=value; o.textContent=label; sel.appendChild(o); }
+function idMap(csv){ const m={}; csv.split(',').map(s=>s.trim()).forEach(k=>m[k]=id(k)); return m; }
+function mergeMaps(a,b){ const out={...(a||{})}; for(const [k,v] of Object.entries(b||{})){ out[k] = Object.assign({}, out[k], v); } return out; }
+function pickLegFromChains(leg){
+  const map = (leg.side==='CALL')? CHAINS?.callExpDateMap : CHAINS?.putExpDateMap;
+  const arr = (map?.[leg.expiration+':0']?.[String(leg.strike)]) || (map?.[leg.expiration]?.[String(leg.strike)]) || [];
+  return arr[0] || null;
+}
+</script>
+{% endblock %}

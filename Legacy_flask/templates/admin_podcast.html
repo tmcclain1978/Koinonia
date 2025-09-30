@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container" style="max-width:980px;">
+  <h1 class="mt-3">Admin — Podcast</h1>
+  <p class="text-muted">Manage episodes for the public <a href="{{ url_for('page_podcast') }}">Podcast</a> page.</p>
+
+  <hr>
+
+  <!-- New Episode -->
+  <h3>New Episode</h3>
+  <form id="pod-new-form" class="mb-4">
+    <div class="row g-2">
+      <div class="col-md-7">
+        <label class="form-label">Title</label>
+        <input class="form-control" name="title" placeholder="Episode 04 — ..." required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Date</label>
+        <input class="form-control" type="date" name="date" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Duration</label>
+        <input class="form-control" name="duration" placeholder="28:05">
+      </div>
+    </div>
+    <div class="mt-2">
+      <label class="form-label">Media File</label>
+      <input class="form-control" type="file" name="file" accept="audio/*,video/*" required>
+    </div>
+    <button class="btn btn-primary mt-3" type="submit">Create</button>
+    <span id="pod-new-status" class="ms-2 text-muted"></span>
+  </form>
+
+  <!-- Live stream -->
+  <h3>Live Stream</h3>
+  <div class="row g-2 align-items-end mb-4">
+    <div class="col-md-9">
+      <label class="form-label">HLS URL (.m3u8)</label>
+      <input id="live-url" class="form-control" placeholder="https://..." />
+    </div>
+    <div class="col-md-3">
+      <button class="btn btn-outline-primary w-100" id="save-live">Save Live URL</button>
+    </div>
+  </div>
+
+  <!-- Episodes -->
+  <h3>Episodes</h3>
+  <div class="d-flex mb-2">
+    <button class="btn btn-secondary btn-sm" id="pod-refresh">Refresh</button>
+  </div>
+  <div id="pod-table">Loading…</div>
+</div>
+
+<script>
+const ADMIN_TOKEN = "{{ admin_token or '' }}";
+async function podList(){
+  const r = await fetch('/api/admin/podcast/list', { headers: {'Authorization':'Bearer '+ADMIN_TOKEN}});
+  const data = await r.json().catch(_=>({items:[], live_url:''}));
+  const items = data.items||[];
+  document.getElementById('live-url').value = data.live_url||'';
+  if(!items.length){ document.getElementById('pod-table').innerHTML = '<p class="text-muted">No episodes.</p>'; return; }
+  let html = `<table class="table table-striped"><thead><tr>
+    <th>Title</th><th>Date</th><th>Duration</th><th>URL</th><th></th></tr></thead><tbody>`;
+  for(const ep of items){
+    html += `<tr>
+      <td>${ep.title||''}</td>
+      <td>${ep.date||''}</td>
+      <td>${ep.duration||''}</td>
+      <td><code>${ep.url||''}</code></td>
+      <td class="text-nowrap">
+        <button class="btn btn-sm btn-outline-danger" onclick="podDelete('${ep.id}')">Delete</button>
+      </td>
+    </tr>`;
+  }
+  html += `</tbody></table>`;
+  document.getElementById('pod-table').innerHTML = html;
+}
+async function podDelete(id){
+  if(!confirm('Delete this episode?')) return;
+  await fetch('/api/admin/podcast/delete', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+ADMIN_TOKEN},
+    body: JSON.stringify({id})
+  });
+  podList();
+}
+document.getElementById('pod-new-form').onsubmit = async (e)=>{
+  e.preventDefault();
+  const el = document.getElementById('pod-new-status');
+  el.textContent = 'Saving…';
+  const fd = new FormData(e.target);
+  const r = await fetch('/api/admin/podcast/create', {
+    method:'POST', headers:{'Authorization':'Bearer '+ADMIN_TOKEN}, body: fd
+  });
+  el.textContent = (r.ok?'Created ✅':'Failed ❌');
+  podList(); e.target.reset();
+};
+document.getElementById('save-live').onclick = async ()=>{
+  const url = document.getElementById('live-url').value.trim();
+  await fetch('/api/admin/podcast/live', {
+    method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+ADMIN_TOKEN},
+    body: JSON.stringify({url})
+  });
+  alert('Live URL saved');
+};
+document.getElementById('pod-refresh').onclick = podList;
+document.addEventListener('DOMContentLoaded', podList);
+</script>
+{% endblock %}

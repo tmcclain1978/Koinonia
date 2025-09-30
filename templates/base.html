@@ -1,0 +1,63 @@
+{# templates/base.html #}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <title>{% block title %}Koinonia{% endblock %}</title>
+
+  {# Favicon / PWA (optional icons safe to keep even if missing) #}
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+  <meta name="theme-color" content="#0b1020">
+
+  {# Global styles #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/koinonia.css') }}" />
+
+  {# Page-specific head content (extra CSS, meta, etc.) #}
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="{% if hide_nav %}no-nav{% else %}with-nav{% endif %}">
+
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  {# Top navigation (hidden on auth pages when hide_nav=True) #}
+  {% if not hide_nav %}
+    {% include "_partials/topnav.html" %}
+  {% endif %}
+
+  {# Flash messages #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-wrap">
+        {% for category, msg in messages %}
+          <div class="flash-{{ category|lower }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {# Main content #}
+  <main id="main" class="{% block main_class %}{% endblock %}">
+    {% block content %}{% endblock %}
+  </main>
+
+  {# Optional global footer #}
+  {% block footer %}
+  <footer class="site-footer">
+    <div class="container">
+      <span>&copy; {{  now().year if now is defined else ''  }} Koinonia</span>
+      <nav class="footer-nav">
+        <a href="{{ href_for('terms', '#') }}">Terms</a>
+        <a href="{{ href_for('privacy', '#') }}">Privacy</a>
+      </nav>
+
+    </div>
+  </footer>
+  {% endblock %}
+
+  {# Page-specific scripts go here #}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Koinonia · Sign In{% endblock %}
+{% block content %}
+  <!-- your login/register form -->
+{% endblock %}
+{% block main_class %}auth-shell{% endblock %}
+{% block content %}
+<section class="auth-card">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+    <img src="{{ url_for('static', filename='img/koinonia-mark.svg') }}" alt="" style="width:28px;height:28px">
+    <h1 class="auth-title">Create your account</h1>
+  </div>
+  <p class="auth-sub">Use a valid invitation code.</p>
+
+  <form method="post" action="{{ url_for('register_post') }}" novalidate>
+    <div class="form-row">
+      <label>Username</label>
+      <input name="username" autocomplete="username" required>
+    </div>
+    <div class="form-row">
+      <label>Email (optional)</label>
+      <input type="email" name="email" autocomplete="email">
+    </div>
+    <div class="form-row">
+      <label>Password</label>
+      <input type="password" name="password" autocomplete="new-password" minlength="8" required>
+    </div>
+    <div class="form-row">
+      <label>Confirm Password</label>
+      <input type="password" name="confirm" autocomplete="new-password" minlength="8" required>
+    </div>
+    <div class="form-row">
+      <label>Invitation Code</label>
+      <input name="invite" required>
+      <div class="muted">Admins use the admin code; users use the user code.</div>
+    </div>
+    <button class="btn" type="submit" style="width:100%">Create account</button>
+
+    <div style="margin-top:12px; text-align:center">
+      <a href="{{ url_for('login') }}" class="muted">Already have an account? Sign in</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

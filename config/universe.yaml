@@ -1,0 +1,12 @@
+allowlist:
+  - AAPL
+  - LLY
+  - MSFT
+  - NVDA
+  - META
+  - TSLA
+sector_leaders:
+  tech: [AAPL, MSFT, NVDA, META]
+  discretionary: [TSLA, AMZN]
+fallback_most_actives: true
+universe_size: 100

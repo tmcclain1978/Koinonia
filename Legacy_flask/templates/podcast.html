@@ -1,0 +1,76 @@
+{# Legacy_flask/templates/podcast.html #}
+{% include "_partials/topnav.html" %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>You Got Options — Live Podcast</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    :root { --bg:#0b0f14; --card:#111824; --text:#e5e7eb; --muted:#9ca3af; --accent:#a78bfa; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    header { padding: 20px 24px; border-bottom: 1px solid #1f2937; position: sticky; top:0; background: rgba(11,15,20,0.85); backdrop-filter: blur(8px); display:flex; align-items:center; justify-content:space-between;}
+    h1 { margin:0; font-size: 22px; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+    .card { background: var(--card); border: 1px solid #1f2937; border-radius: 14px; overflow: hidden; }
+    .card h2 { margin: 0; padding: 16px 16px 0; font-size: 18px; }
+    .card p { padding: 0 16px 16px; color: var(--muted); }
+    .video { width: 100%; aspect-ratio: 16 / 9; background: #000; }
+    .episode { padding: 10px 14px; border-top:1px solid #1f2937; cursor:pointer; }
+    .episode:hover { background: #101722; }
+    .live-pill { display:inline-flex; align-items:center; gap:8px; background:#1d2636; border:1px solid #273347; border-radius:999px; padding:6px 10px; font-size:12px; color:#fca5a5;}
+    .dot { width:8px; height:8px; background:#ef4444; border-radius:50%; animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0%{opacity:.4;} 50%{opacity:1;} 100%{opacity:.4;} }
+    .btn { padding: 8px 12px; border:1px solid #334155; background:#0f172a; color:#e5e7eb; border-radius:8px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>You Got Options — Live Podcast</h1>
+    <div class="live-pill"><span class="dot"></span> LIVE</div>
+  </header>
+  <div class="container">
+    <div class="grid">
+      <div class="card">
+        <h2 style="padding-bottom:8px;">Live Stream</h2>
+        {% if live_url %}
+        <video id="live-player" class="video" controls autoplay muted playsinline>
+          <source src="{{ live_url }}" type="application/x-mpegURL">
+        </video>
+        <p>Streaming via HLS. If playback fails, provide a direct MP4 fallback.</p>
+        {% else %}
+        <div class="video"></div>
+        <p>No live stream URL configured yet. Set <code>live_url</code> in the route context.</p>
+        {% endif %}
+      </div>
+      <div class="card">
+        <h2>Recent Episodes</h2>
+        <div id="episodes">
+          {% for ep in episodes %}
+          <div class="episode" data-url="{{ ep.url }}">
+            <div style="font-weight:600">{{ ep.title }}</div>
+            <div style="font-size:12px; color:#9ca3af;">{{ ep.date }} • {{ ep.duration }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Swap live player to on-demand episode on click
+    const eps = document.getElementById('episodes');
+    eps?.addEventListener('click', (e)=>{
+      const item = e.target.closest('.episode');
+      if (!item) return;
+      const url = item.dataset.url;
+      const container = document.getElementById('live-player')?.parentElement;
+      if (!container) return;
+      container.innerHTML = \`
+        <video class="video" controls autoplay playsinline>
+          <source src="\${url}" type="video/mp4">
+        </video>\`
+    });
+  </script>
+</body>
+</html>

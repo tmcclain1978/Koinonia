@@ -1,0 +1,60 @@
+# --- Python / Flask / FastAPI ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.dist/
+build/
+develop-eggs/
+pip-wheel-metadata/
+.venv/
+venv/
+env/
+ENV/
+*.log
+*.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.idea/
+.vscode/
+.DS_Store
+
+# Databases & artifacts
+# keep migrations but ignore local sqlite by default
+*.db
+!migrations/**
+
+# You asked to init users.db fresh, so make sure:
+users.db
+
+# Models / large binaries (prefer LFS if you actually need them)
+models/
+*.joblib
+*.pkl
+
+# --- Env & secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Node / Frontend (React/Vite/etc.) ---
+node_modules/
+dist/
+build/
+.cache/
+*.map
+
+# Generated assets & zips
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
+# OS junk
+Thumbs.db

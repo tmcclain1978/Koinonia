@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% include "_partials/topnav.html" %}
+{% block head %}
+<style>
+  /* Layout */
+  .page-wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  .section { background: #0f172a; border: 1px solid #1f2937; border-radius: 12px; margin-bottom: 16px; }
+  .section h2 { margin: 0; padding: 14px 16px; font-size: 18px; border-bottom: 1px solid #1f2937; }
+  .section .body { padding: 14px 16px; }
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+
+  /* Chart toolbar */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .btn, .select, .check { font: inherit; }
+  .btn { padding: 8px 10px; border: 1px solid #334155; background: #0b1220; color: #e5e7eb; border-radius: 8px; cursor: pointer; }
+  .btn.active { background: #111827; border-color: #475569; }
+  .select { padding: 8px 10px; border: 1px solid #334155; background: #0b1220; color: #e5e7eb; border-radius: 8px; }
+  .overlay-pill { display:inline-flex; align-items:center; gap:8px; border:1px solid #334155; padding:6px 10px; border-radius:999px; background:#0b1220; color:#cbd5e1; }
+  .toolbar .group { display:flex; gap:8px; align-items:center; }
+
+  /* Chart area */
+  #chart-root { height: 420px; background: #0a0f1a; border: 1px dashed #1f2937; border-radius: 12px; }
+
+  /* Form */
+  .form-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-row { display:flex; flex-direction:column; gap:6px; }
+  .input, .select-full { padding: 10px 12px; border:1px solid #334155; border-radius:8px; background:#0b1220; color:#e5e7eb; }
+  label { font-size: 12px; color: #94a3b8; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top: 8px; }
+
+  /* Output panes */
+  pre.out { background:#0b1220; border:1px solid #334155; border-radius:8px; padding:10px; color:#cbd5e1; max-height:260px; overflow:auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+  <!-- CHART OPTIONS -->
+  <div class="section">
+    <h2>Chart Options</h2>
+    <div class="body">
+      <div class="toolbar">
+        <div class="group">
+          <strong style="color:#9aa0a6">Timeframe:</strong>
+          <button class="btn tf" data-value="1m">1m</button>
+          <button class="btn tf" data-value="5m">5m</button>
+          <button class="btn tf" data-value="15m">15m</button>
+          <button class="btn tf" data-value="1h">1h</button>
+          <button class="btn tf active" data-value="1d">1d</button>
+        </div>
+
+        <div class="group">
+          <strong style="color:#9aa0a6">Type:</strong>
+          <select id="chart-type" class="select">
+            <option value="candles" selected>Candles</option>
+            <option value="bars">Bars</option>
+            <option value="line">Line</option>
+            <option value="heikin">Heikin-Ashi</option>
+          </select>
+        </div>
+
+        <div class="group" style="gap:6px;">
+          <strong style="color:#9aa0a6">Overlays:</strong>
+          <label class="overlay-pill"><input class="ov" type="checkbox" data-key="ema20"> EMA20</label>
+          <label class="overlay-pill"><input class="ov" type="checkbox" data-key="ema50"> EMA50</label>
+          <label class="overlay-pill"><input class="ov" type="checkbox" data-key="vwap"> VWAP</label>
+          <label class="overlay-pill"><input class="ov" type="checkbox" data-key="bbands"> Bollinger</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHART + ORDER PANEL -->
+  <div class="grid">
+    <div class="section">
+      <h2>Price Chart</h2>
+      <div class="body">
+        <div id="chart-root"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Paper Trade — Options</h2>
+      <div class="body">
+        <form id="paper-form" onsubmit="return false;">
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Symbol</label>
+              <input class="input" name="symbol" value="AAPL" />
+            </div>
+            <div class="form-row">
+              <label>Side</label>
+              <select class="select-full" name="side">
+                <option>CALL</option>
+                <option>PUT</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Expiration (YYYY-MM-DD)</label>
+              <input class="input" name="expiration" placeholder="2025-12-20"/>
+            </div>
+            <div class="form-row">
+              <label>Strike</label>
+              <input class="input" name="strike" type="number" step="0.01" placeholder="180"/>
+            </div>
+            <div class="form-row">
+              <label>Quantity</label>
+              <input class="input" name="quantity" type="number" value="1" min="1"/>
+            </div>
+            <div class="form-row">
+              <label>Limit Price (optional)</label>
+              <input class="input" name="price" type="number" step="0.01" placeholder="0.00"/>
+            </div>
+            <div class="form-row">
+              <label>Order Type</label>
+              <select class="select-full" name="orderType">
+                <option>LIMIT</option>
+                <option>MARKET</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Duration</label>
+              <select class="select-full" name="duration">
+                <option>DAY</option>
+                <option>GTC</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn" id="btn-preview">Preview</button>
+            <button class="btn" id="btn-sim">Simulate</button>
+            <a class="btn" href="/api/paper/options/export.csv" target="_blank" rel="noopener">Export CSV</a>
+            <button class="btn" id="btn-log">Load Log</button>
+            <button class="btn" id="btn-stats">Load Stats</button>
+          </div>
+        </form>
+
+        <h3 style="margin-top:14px;">Preview Result</h3>
+        <pre id="preview-out" class="out">{}</pre>
+
+        <h3 style="margin-top:14px;">Simulation</h3>
+        <pre id="sim-out" class="out">{}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUDIT / STATS -->
+  <div class="section">
+    <h2>Audit & Stats</h2>
+    <div class="body" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+      <div>
+        <h3>Recent Log</h3>
+        <pre id="log-out" class="out">{}</pre>
+      </div>
+      <div>
+        <h3>Stats</h3>
+        <pre id="stats-out" class="out">{}</pre>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ---- Chart Option Event Bus ----
+  function emitChartOption(type, value) {
+    window.dispatchEvent(new CustomEvent('chart:option', { detail: { type, value } }));
+  }
+
+  // Timeframe buttons
+  document.querySelectorAll('.btn.tf').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn.tf').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      emitChartOption('timeframe', btn.dataset.value);
+    });
+  });
+
+  // Chart type
+  document.getElementById('chart-type')?.addEventListener('change', (e) => {
+    emitChartOption('type', e.target.value);
+  });
+
+  // Overlays
+  document.querySelectorAll('.ov').forEach(chk => {
+    chk.addEventListener('change', () => {
+      emitChartOption('overlay', { key: chk.dataset.key, enabled: chk.checked });
+    });
+  });
+
+  // ---- Paper Trading Actions ----
+  async function jsonPost(url, body) {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+
+  function readForm() {
+    const f = document.getElementById('paper-form');
+    const get = (n) => f.querySelector(`[name="${n}"]`)?.value || '';
+    const num = (n) => {
+      const v = get(n);
+      return v === '' ? undefined : Number(v);
+    }
+    return {
+      symbol: get('symbol').trim().toUpperCase(),
+      side: get('side'),
+      expiration: get('expiration'),
+      strike: num('strike'),
+      quantity: Number(get('quantity') || 1),
+      orderType: get('orderType'),
+      duration: get('duration'),
+      price: num('price')
+    };
+  }
+
+  // Preview
+  document.getElementById('btn-preview')?.addEventListener('click', async () => {
+    const payload = readForm();
+    try {
+      const data = await jsonPost('/api/paper/options/preview', payload);
+      document.getElementById('preview-out').textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      document.getElementById('preview-out').textContent = String(e);
+    }
+  });
+
+  // Simulate
+  document.getElementById('btn-sim')?.addEventListener('click', async () => {
+    const payload = readForm();
+    try {
+      const data = await jsonPost('/api/paper/options/simulate', payload);
+      document.getElementById('sim-out').textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      document.getElementById('sim-out').textContent = String(e);
+    }
+  });
+
+  // Log
+  document.getElementById('btn-log')?.addEventListener('click', async () => {
+    try {
+      const r = await fetch('/api/paper/options/log');
+      const data = await r.json();
+      document.getElementById('log-out').textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      document.getElementById('log-out').textContent = String(e);
+    }
+  });
+
+  // Stats
+  document.getElementById('btn-stats')?.addEventListener('click', async () => {
+    try {
+      const r = await fetch('/api/paper/options/stats');
+      const data = await r.json();
+      document.getElementById('stats-out').textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      document.getElementById('stats-out').textContent = String(e);
+    }
+  });
+
+  // Optional: initialize defaults for chart listeners
+  emitChartOption('timeframe', document.querySelector('.btn.tf.active')?.dataset.value || '1d');
+  emitChartOption('type', document.getElementById('chart-type')?.value || 'candles');
+</script>
+<script>
+  // Call these after successful responses:
+
+  async function doPreview(body) {
+    const r = await fetch('/api/paper/options/preview', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const json = await r.json();
+    // ...your existing UI updates...
+    // Tell the chart to refresh (symbol optional; defaults to form value)
+    window.dispatchEvent(new CustomEvent('paper:preview:done', {
+      detail: { symbol: (body && body.symbol) || undefined }
+    }));
+    return json;
+  }
+
+  async function doSimulate(body) {
+    const r = await fetch('/api/paper/options/simulate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const json = await r.json();
+    window.dispatchEvent(new CustomEvent('paper:simulate:done', {
+      detail: { symbol: (body && body.symbol) || undefined }
+    }));
+    return json;
+  }
+
+  async function doPlaceTrade(body) {
+    const r = await fetch('/api/trade/submit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const json = await r.json();
+    window.dispatchEvent(new CustomEvent('paper:place:done', {
+      detail: { symbol: (body && body.symbol) || undefined }
+    }));
+    return json;
+  }
+
+  // Optional: if you have existing button handlers, just replace the fetch calls with doPreview/doSimulate/doPlaceTrade
+  // Example:
+  // document.getElementById('btn-preview')?.addEventListener('click', () => {
+  //   const body = collectForm(); // build your payload
+  //   doPreview(body);
+  // });
+
+</script>
+
+{% endblock %}

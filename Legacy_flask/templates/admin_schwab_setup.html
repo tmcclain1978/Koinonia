@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Schwab Setup{% endblock %}
+
+{% block head %}
+<style>
+  .wrap{padding:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+  .card{background:#0f1420;border:1px solid #1f2a44;border-radius:12px;padding:16px}
+  .card .title{font-weight:700;margin-bottom:8px}
+  .kv{display:grid;grid-template-columns:160px 1fr;gap:6px;font-size:14px}
+  .kv .k{color:#93a2b8}
+  .muted{color:#9aa0a6;font-size:12px}
+  .pill{display:inline-block;border:1px solid #334;background:#111827;padding:2px 8px;border-radius:999px;font-size:12px}
+  .btn{padding:8px 12px;border-radius:8px;border:1px solid #444;background:#222;color:#eaeaea;cursor:pointer}
+  .btn.primary{background:#2d6cdf;border-color:#2d6cdf}
+  pre{background:#0b0f1a;padding:12px;border-radius:10px;overflow:auto;max-height:40vh}
+  .ok{color:#7bffb2}.warn{color:#ffb86b}.bad{color:#ff7b7b}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap" id="page"
+     data-client-id="{{ env.SCHWAB_CLIENT_ID }}"
+     data-redirect="{{ env.SCHWAB_REDIRECT_URI }}"
+     data-api="{{ env.SCHWAB_API_URL }}"
+     data-auth="{{ env.SCHWAB_AUTH_URL }}"
+     data-token="{{ env.SCHWAB_TOKEN_URL }}"
+     data-scopes="{{ env.SCHWAB_SCOPES }}"
+     data-token-path="{{ env.SCHWAB_TOKEN_PATH }}">
+  <h2>🔧 Charles Schwab Setup</h2>
+  <p class="muted">Use this page to verify env wiring, launch OAuth, and inspect/refresh the stored token.</p>
+
+  <div class="grid">
+    <!-- ENV -->
+    <div class="card">
+      <div class="title">Environment</div>
+      <div class="kv">
+        <div class="k">Client ID</div><div id="cid">—</div>
+        <div class="k">Redirect URI</div><div id="redir">—</div>
+        <div class="k">API URL</div><div id="api">—</div>
+        <div class="k">Auth URL</div><div id="auth">—</div>
+        <div class="k">Token URL</div><div id="tok">—</div>
+        <div class="k">Scopes</div><div id="scopes">—</div>
+        <div class="k">Token Path</div><div id="tpath">—</div>
+      </div>
+      <div id="envNotes" class="muted" style="margin-top:8px"></div>
+      <div style="margin-top:8px">
+        <button class="btn primary" id="btnAuth">Launch OAuth</button>
+      </div>
+    </div>
+
+    <!-- TOKEN -->
+    <div class="card">
+      <div class="title">Token Status</div>
+      <div class="kv">
+        <div class="k">Exists</div><div id="t_exists">—</div>
+        <div class="k">Access TTL</div><div id="t_ttl">—</div>
+        <div class="k">File mtime</div><div id="t_mtime">—</div>
+        <div class="k">Path</div><div id="t_path">—</div>
+      </div>
+      <div style="margin-top:8px">
+        <button class="btn" id="btnRefresh">Force Refresh</button>
+        <button class="btn" id="btnDelete">Delete Token</button>
+      </div>
+      <pre id="t_raw"></pre>
+    </div>
+
+    <!-- QUICK TEST -->
+    <div class="card">
+      <div class="title">Quick API Test</div>
+      <p class="muted">Fetch 1 day of SPY candles (price history). If this works, market data + token are good.</p>
+      <div style="margin-bottom:8px">
+        <button class="btn" id="btnPing">Ping Price History</button>
+        <span id="pingStat" class="pill">idle</span>
+      </div>
+      <pre id="pingOut"></pre>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  // hydrate env panel
+  const el = (id)=>document.getElementById(id);
+  const page = document.getElementById('page');
+  const env = {
+    cid: page.dataset.clientId,
+    redir: page.dataset.redirect,
+    api: page.dataset.api,
+    auth: page.dataset.auth,
+    token: page.dataset.token,
+    scopes: page.dataset.scopes,
+    tpath: page.dataset.tokenPath
+  };
+  el('cid').textContent   = env.cid || '—';
+  el('redir').textContent = env.redir || '—';
+  el('api').textContent   = env.api || '—';
+  el('auth').textContent  = env.auth || '—';
+  el('tok').textContent   = env.token || '—';
+  el('scopes').textContent= env.scopes || '—';
+  el('tpath').textContent = env.tpath || '—';
+
+  // basic guidance
+  const notes = [];
+  if (!/^https:\/\//i.test(env.redir||'')) { notes.push('Redirect URI should be HTTPS and must exactly match the portal.'); }
+  if (!env.cid) notes.push('SCHWAB_CLIENT_ID is empty.');
+  if (!env.api) notes.push('SCHWAB_API_URL is empty.');
+  if (!env.auth || !env.token) notes.push('SCHWAB_AUTH_URL / SCHWAB_TOKEN_URL are empty.');
+  el('envNotes').innerHTML = notes.length ? notes.map(n=>`<div class="warn">⚠ ${n}</div>`).join('') : '<span class="ok">Environment looks good.</span>';
+
+  // token panel
+  async function loadToken(){
+    const res = await fetch('/api/schwab/admin/token');
+    const data = await res.json();
+    el('t_exists').textContent = data.exists ? 'Yes' : 'No';
+    el('t_path').textContent = data.path || '—';
+    const ttl = data.access_ttl_sec;
+    el('t_ttl').textContent = (typeof ttl === 'number') ? (ttl + 's') : 'Unknown';
+    const mt = data.file_mtime ? new Date(data.file_mtime*1000).toLocaleString() : '—';
+    el('t_mtime').textContent = mt;
+    el('t_raw').textContent = JSON.stringify(data.raw || data, null, 2);
+  }
+
+  // buttons
+  el('btnAuth').onclick = async () => {
+    // try the admin builder; if not available, fallback to your public /api/schwab/auth/login
+    let url;
+    try {
+      const r = await fetch('/api/schwab/admin/login_url');
+      const j = await r.json();
+      url = j.url;
+    } catch(e) {
+      const r = await fetch('/api/schwab/auth/login');
+      const j = await r.json();
+      url = j.url;
+    }
+    if (url) window.open(url, '_blank');
+  };
+
+  el('btnRefresh').onclick = async () => {
+    const r = await fetch('/api/schwab/admin/refresh', {method:'POST'});
+    const j = await r.json();
+    alert(j.ok ? 'Refresh attempted. Re-check status.' : ('Refresh error: ' + (j.error||'unknown')));
+    loadToken();
+  };
+
+  el('btnDelete').onclick = async () => {
+    if (!confirm('Delete the stored token file? You will need to re-authenticate.')) return;
+    const r = await fetch('/api/schwab/admin/delete', {method:'POST'});
+    const j = await r.json();
+    alert(j.ok ? 'Token deleted.' : ('Delete error: ' + (j.error||'unknown')));
+    loadToken();
+  };
+
+  // quick ping
+  el('btnPing').onclick = async () => {
+    el('pingStat').textContent = 'running';
+    try {
+      const r = await fetch('/api/schwab/pricehistory', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Admin-Token':'{{ config.get("ADMIN_API_TOKEN","") }}'},
+        body: JSON.stringify({symbol:'SPY', period:'1D', interval:'1d'})
+      });
+      const j = await r.json();
+      el('pingOut').textContent = JSON.stringify(j, null, 2);
+      el('pingStat').textContent = (j.candles && j.candles.length) ? 'ok' : 'no-candles';
+    } catch(e) {
+      el('pingOut').textContent = String(e);
+      el('pingStat').textContent = 'error';
+    }
+  };
+
+  loadToken();
+})();
+</script>
+{% endblock %}

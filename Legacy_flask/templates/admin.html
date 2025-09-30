@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% include "_partials/topnav.html" %}
+
+{# Optional: if base.html has a 'topnav' block we can override with an admin nav #}
+{% block topnav %}
+  {% include "partials/admin_topnav.html" ignore missing %}
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:1100px;">
+  <div class="d-flex align-items-center justify-content-between mt-3">
+    <h1 class="mb-0">Admin Console</h1>
+    <div class="text-muted">Manage Education, Podcast, and Bot</div>
+  </div>
+
+  <hr>
+
+  <div class="row g-3">
+    <!-- Card: Education -->
+    <div class="col-md-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Education</h5>
+          <p class="card-text">Upload and manage videos shown on the public Education page.</p>
+          <a class="btn btn-primary" href="{{ url_for('page_admin_education') }}">Open Education Admin</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Podcast -->
+    <div class="col-md-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Podcast</h5>
+          <p class="card-text">Create episodes and set the live stream URL.</p>
+          <a class="btn btn-primary" href="{{ url_for('page_admin_podcast') }}">Open Podcast Admin</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card: Bot Control -->
+    <div class="col-md-4">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Bot Control</h5>
+          <p class="card-text">Start/stop the AI engine and adjust risk limits.</p>
+          <a class="btn btn-primary" href="{{ url_for('page_admin_bot') }}">Open Bot Control</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="my-4">
+
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">← Back to Dashboard</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('page_education') }}">View Public Education</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('page_podcast') }}">View Public Podcast</a>
+  </div>
+</div>
+{% endblock %}

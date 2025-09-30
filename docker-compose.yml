@@ -1,0 +1,80 @@
+
+name: options-analytics
+
+services:
+  api:
+    build:
+      context: .
+      target: dev                   # uses the dev stage in your Dockerfile
+    container_name: options-api
+    env_file:
+      - .env                        # local dev env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app                      # live-reload with your source
+    command: >
+      uvicorn api.main:app
+      --host 0.0.0.0 --port 8000 --reload
+ 
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: options-web
+    environment:
+      - VITE_API_BASE=http://localhost:8000
+      - VITE_APP_NAME=Koinonia
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules          # <-- keep deps inside container
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+
+
+  db:
+    image: postgres:16
+    container_name: options-db
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: analytics
+      POSTGRES_PASSWORD: analytics
+    ports:
+      - "5433:5432"                 # expose locally (5433) to avoid clashing with host 5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analytics -d analytics"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: options-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:
+  redisdata:

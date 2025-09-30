@@ -1,0 +1,29 @@
+.koi-header{margin:6px 0 16px}
+.koi-header h1{margin:0 0 4px}
+.sub{color:#9fb0cf}
+
+.grid{display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.card{background:var(--k-card, rgba(14,24,49,.72)); border:1px solid var(--k-border, rgba(123,210,255,.2));
+      border-radius:14px; padding:14px}
+.card-title{margin:0 0 10px; font-weight:800}
+.row{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px}
+.row input, .row select{min-width:120px; flex:1; padding:8px; border-radius:8px; border:1px solid #334155; background:#0f1420; color:#eaeaea}
+.btn{padding:8px 12px; border-radius:10px; border:1px solid #334155; background:#0f1420; color:#eaeaea; cursor:pointer}
+.btn.primary{background:#2d6cdf; border-color:#2d6cdf}
+.muted{color:#9aa0a6; font-size:12px}
+.pre{background:#0e0e0e; color:#d1d5db; padding:10px; border-radius:10px; max-height:300px; overflow:auto}
+
+.tbl{width:100%; border-collapse:collapse; font-size:14px}
+.tbl th, .tbl td{border-bottom:1px solid #1f2a44; padding:8px 10px; text-align:left}
+.tbl tbody tr:hover{background:#0f172a}
+
+.chips{display:flex; gap:6px; flex-wrap:wrap}
+.chip{display:inline-flex; gap:6px; align-items:center; padding:6px 10px; border-radius:999px; background:#0f172a; border:1px solid #24314b}
+.chip button{background:transparent; border:0; color:#93a2b8; cursor:pointer}
+
+.span-2{grid-column: span 2}
+.heatmap{overflow:auto; border-radius:10px; border:1px solid #1f2a44}
+.hm-grid{display:grid; grid-template-columns: 100px repeat(8, 1fr)} /* 8 expiries shown */
+.hm-cell{padding:8px; border-bottom:1px solid #16233c; border-right:1px solid #16233c; text-align:center}
+.hm-head{position:sticky; top:0; background:#0b1220; z-index:1}
+.hm-strike{position:sticky; left:0; background:#0b1220; text-align:right}

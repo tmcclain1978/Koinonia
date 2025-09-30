@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: options-analytics-api
+    env: docker
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /healthz
+    envVars:
+      - key: ENV
+        value: production
+      - key: ALLOWED_ORIGINS
+        value: https://app.yourdomain.com
+      - key: PAPER_MODE
+        value: false
+      - key: ENABLE_TRADING
+        value: false            # flip after dry-run
+      - key: DATABASE_URL
+        fromDatabase:
+          name: analytics-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: analytics-redis
+          type: redis
+    dockerCommand: >
+      gunicorn -k uvicorn.workers.UvicornWorker api.main:app
+      --workers 4 --threads 2 --timeout 30 --graceful-timeout 30 --bind 0.0.0.0:10000
+
+databases:
+  - name: analytics-db
+    plan: starter
+
+redis:
+  - name: analytics-redis
+    plan: starter

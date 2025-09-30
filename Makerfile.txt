@@ -1,0 +1,14 @@
+.PHONY: up down logs sh migrate seed rebuild
+
+up:
+\tdocker compose up -d --build
+down:
+\tdocker compose down -v
+logs:
+\tdocker compose logs -f --tail=200
+sh:
+\tdocker compose exec api bash
+migrate:
+\tdocker compose exec api bash scripts/migrate.sh
+rebuild:
+\tdocker compose build --no-cache api

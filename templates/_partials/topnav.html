@@ -1,0 +1,46 @@
+<nav class="k-topnav">
+  <div class="k-left">
+    <a class="brand" href="{{ url_for('home') }}">Koinonia</a>
+
+    <a href="{{ href_for('dashboard', '/dashboard') }}">Dashboard</a>
+
+    <div class="dropdown">
+      <button class="dropdown-toggle">AI Advisor</button>
+      <div class="dropdown-menu">
+        <a class="dropdown-item" href="{{ href_for('page_advisor', '/dashboard/advisor') }}">Overview</a>
+        <a class="dropdown-item" href="/dashboard/advisor/iv-oi">IV / OI Heatmap</a>
+        <a class="dropdown-item" href="/dashboard/advisor/backtest">Backtest</a>
+        <a class="dropdown-item" href="/dashboard/advisor/news">News</a>
+        <div class="dropdown-sep"></div>
+        <a class="dropdown-item" href="/dashboard/advisor/login">Login</a>
+        <a class="dropdown-item" href="/dashboard/advisor/register">Register</a>
+      </div>
+    </div>
+
+    <a href="{{ href_for('page_options_analytics', '/analytics/options') }}">Analytics (Options)</a>
+    <a href="{{ href_for('page_paper_options', '/paper/options') }}">Paper (Options)</a>
+    <a href="{{ href_for('page_audit', '/audit') }}">Audit</a>
+    <a href="{{ href_for('page_education', '/education') }}">Education</a>
+    <a href="{{ href_for('page_podcast', '/podcast') }}">You Got Options (Live)</a>
+  </div>
+
+  <div class="k-right">
+    {% set mode_text = "Read-Only" %}
+    {% if ENABLE_TRADING and PAPER_MODE %}
+      {% set mode_text = "Paper" %}
+    {% elif ENABLE_TRADING and not PAPER_MODE %}
+      {% set mode_text = "Live" %}
+    {% endif %}
+
+    <span class="pill" title="Server trading mode">{{ mode_text }}</span>
+    <span class="pill" title="User">
+      {{ current_user.get_id() if current_user.is_authenticated else "Guest" }}
+    </span>
+
+    {% if current_user.is_authenticated %}
+      <a class="pill" href="{{ url_for('logout') }}">Logout</a>
+    {% else %}
+      <a class="pill" href="{{ url_for('login') }}">Login</a>
+    {% endif %}
+  </div>
+</nav>

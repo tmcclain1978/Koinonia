@@ -1,0 +1,108 @@
+{# Legacy_flask/templates/education.html #}
+{% include "_partials/topnav.html" %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Options Education — Koinonia</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    :root { --bg:#0b0f14; --card:#111824; --text:#e5e7eb; --muted:#9ca3af; --accent:#7dd3fc; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    header { padding: 20px 24px; border-bottom: 1px solid #1f2937; position: sticky; top:0; background: rgba(11,15,20,0.85); backdrop-filter: blur(8px); }
+    h1 { margin: 0; font-size: 22px; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+    .card { background: var(--card); border: 1px solid #1f2937; border-radius: 14px; overflow: hidden; }
+    .card h2 { margin: 0; padding: 16px 16px 0; font-size: 18px; }
+    .card p { padding: 0 16px 16px; color: var(--muted); }
+    .video { width: 100%; aspect-ratio: 16 / 9; background: #000; }
+    .list { max-height: calc(100vh - 220px); overflow: auto; }
+    .item { display: flex; gap: 12px; padding: 12px 14px; border-top: 1px solid #1f2937; cursor: pointer; }
+    .item:hover { background: #0f1623; }
+    .thumb { width: 84px; height: 48px; background: #0b0b0b; border-radius: 8px; flex-shrink: 0; overflow: hidden; }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; display:block; }
+    .meta { display:flex; flex-direction: column; gap: 2px; }
+    .title { font-weight: 600; }
+    .tag { font-size: 12px; color: var(--muted); }
+    .search { width: 100%; padding: 10px 12px; margin: 12px 14px 0; border-radius: 8px; border: 1px solid #243042; background: #0c131f; color: var(--text); }
+    .pill { display:inline-block; padding: 6px 10px; margin: 6px; border: 1px solid #263244; border-radius: 999px; font-size: 12px; color: var(--muted); }
+    .pill.active { background: #0e1726; border-color: #2f3f58; color: #cbd5e1; }
+    footer { color: var(--muted); text-align: center; padding: 16px; }
+    a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Options Education</h1>
+  </header>
+  <div class="container">
+    <div class="grid">
+      <div class="card">
+        <div id="player-container">
+          {% if current_video %}
+          <video id="edu-player" class="video" controls poster="{{ current_video.poster or '' }}">
+            <source src="{{ current_video.url }}" type="video/mp4">
+          </video>
+          {% else %}
+          <div class="video" id="edu-player-skeleton"></div>
+          {% endif %}
+        </div>
+        <div style="padding: 12px 16px;">
+          <div class="pill {% if current_category=='basics' %}active{% endif %}">Basics</div>
+          <div class="pill {% if current_category=='strategies' %}active{% endif %}">Strategies</div>
+          <div class="pill {% if current_category=='risk' %}active{% endif %}">Risk</div>
+          <div class="pill {% if current_category=='platform' %}active{% endif %}">Platform</div>
+        </div>
+      </div>
+      <div class="card">
+        <input id="search" class="search" type="search" placeholder="Search videos (e.g., 'Greeks', 'iron condor')"/>
+        <div class="list" id="video-list">
+          {% for v in videos %}
+          <div class="item" data-url="{{ v.url }}" data-title="{{ v.title }}">
+            <div class="thumb">
+              {% if v.poster %}<img src="{{ v.poster }}" alt="poster">{% endif %}
+            </div>
+            <div class="meta">
+              <div class="title">{{ v.title }}</div>
+              <div class="tag">{{ v.duration }} • {{ v.category }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h2>Recommended Learning Path</h2>
+      <p>1) Options 101 → 2) Greeks Deep Dive → 3) Risk & Position Sizing → 4) Strategy Labs → 5) Platform Pro Tips</p>
+    </div>
+  </div>
+  <footer>© {{ year }} Koinonia — Learn, Test, Trade</footer>
+  <script>
+    const list = document.getElementById('video-list');
+    const search = document.getElementById('search');
+    function filter() {
+      const q = (search.value || '').toLowerCase();
+      for (const item of list.children) {
+        const title = (item.dataset.title||'').toLowerCase();
+        item.style.display = title.includes(q) ? 'flex' : 'none';
+      }
+    }
+    search.addEventListener('input', filter);
+    list.addEventListener('click', (e)=>{
+      const item = e.target.closest('.item');
+      if (!item) return;
+      const url = item.dataset.url;
+      const title = item.dataset.title;
+      const container = document.getElementById('player-container');
+      container.innerHTML = \`
+        <video id="edu-player" class="video" controls>
+          <source src="\${url}" type="video/mp4">
+        </video>
+      \`;
+      document.title = title + " — Options Education";
+    });
+  </script>
+</body>
+</html>

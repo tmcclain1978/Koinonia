@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}AI Advisor{% endblock %}
+
+{% block content %}
+  <h1 class="page-title">AI Advisor</h1>
+
+  <!-- Controls (if any) -->
+  <section class="mb-4">
+    <!-- Example: allow symbol selection; optional -->
+    <form id="ai-symbol-form" class="flex gap-2 items-center">
+      <label for="ai-symbol" class="text-sm">Symbol</label>
+      <input id="ai-symbol" name="symbol" value="SPY" class="border rounded px-2 py-1 text-sm" />
+      <button type="submit" class="btn btn-primary text-sm">Load</button>
+    </form>
+  </section>
+
+  <!-- React mount points (do NOT define another block here) -->
+  <section id="ai-advisor-root"
+           data-symbol="SPY"
+           data-ivrank-endpoint="{{ url_for('api_options_ivrank') }}"
+           data-oiheatmap-endpoint="{{ url_for('api_options_oi_heatmap') }}"
+           data-suggest-endpoint="{{ url_for('api_options_suggest') }}"
+           data-backtest-endpoint="{{ url_for('api_backtest') }}"
+           data-news-endpoint="{{ url_for('api_news') }}"
+           data-place-paper-endpoint="{{ url_for('api_trade_paper') }}"
+           data-place-live-endpoint="{{ url_for('api_trade_live') }}">
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <div>
+        <h2 class="section-title">IV Rank & OI Heatmap</h2>
+        <div id="iv-oi-root"></div>
+      </div>
+
+      <div>
+        <h2 class="section-title">Backtest</h2>
+        <div id="backtest-root"></div>
+      </div>
+    </div>
+
+    <div class="mt-6">
+      <h2 class="section-title">News</h2>
+      <div id="news-root"></div>
+    </div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <!-- Built React bundle for this page -->
+  <script type="module" src="{{ url_for('static', filename='js/ai_advisor.bundle.js') }}"></script>
+{% endblock %}

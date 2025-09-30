@@ -1,0 +1,1 @@
+document.addEventListener('DOMContentLoaded', async()=>{const r=await fetch('/api/ai_picks'); console.log(await r.json());});
